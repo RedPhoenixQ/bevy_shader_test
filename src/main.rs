@@ -52,8 +52,10 @@ fn main() {
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, windows: Res<Windows>) {
     let window = windows.primary();
 
-    let width = window.width().ceil() as u32;
-    let height = window.height().ceil() as u32;
+    let width = window.width().ceil() as u32
+        + (WORKGROUP_SIZE - (window.width().ceil() as u32 % WORKGROUP_SIZE));
+    let height = window.height().ceil() as u32
+        + (WORKGROUP_SIZE - (window.height().ceil() as u32 % WORKGROUP_SIZE));
 
     let mut image = Image::new_fill(
         Extent3d {
