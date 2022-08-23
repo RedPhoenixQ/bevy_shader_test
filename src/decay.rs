@@ -107,8 +107,8 @@ impl render_graph::Node for DecayNode {
                     .unwrap();
                 pass.set_pipeline(run_pipeline);
                 pass.dispatch_workgroups(
-                    crate::SIZE.0 / crate::WORKGROUP_SIZE,
-                    crate::SIZE.1 / crate::WORKGROUP_SIZE,
+                    settings.width / crate::WORKGROUP_SIZE,
+                    settings.height / crate::WORKGROUP_SIZE,
                     1,
                 );
             }

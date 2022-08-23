@@ -26,12 +26,10 @@ use bevy_egui::{
 use std::{borrow::Cow, ops::RangeInclusive};
 
 const ZOOM: f32 = 1.0;
-pub const SIZE: (u32, u32) = (3440, 1440);
+// pub const SIZE: (u32, u32) = (3440, 1440);
 pub const WORKGROUP_SIZE: u32 = 16;
 pub const GAME_WORKGROUP_SIZE: u32 = 512;
-pub const NUM_AGENTS: u32 = (SIZE.0 * SIZE.1) / 4;
-const SPAWN_MODE: SimSpawnMode = SimSpawnMode::CenterOut;
-
+pub const NUM_AGENTS: u32 = 250000;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
@@ -51,11 +49,16 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, windows: Res<Windows>) {
+    let window = windows.primary();
+
+    let width = window.width().ceil() as u32;
+    let height = window.height().ceil() as u32;
+
     let mut image = Image::new_fill(
         Extent3d {
-            width: SIZE.0,
-            height: SIZE.1,
+            width,
+            height,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
@@ -68,8 +71,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     let mut image_second = Image::new_fill(
         Extent3d {
-            width: SIZE.0,
-            height: SIZE.1,
+            width,
+            height,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
@@ -82,7 +85,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     commands.spawn_bundle(SpriteBundle {
         sprite: Sprite {
-            custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
+            custom_size: Some(Vec2::new(width as f32, height as f32)),
             ..default()
         },
         texture: image.clone(),
@@ -152,9 +155,9 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.insert_resource(randomizable_array);
 
     let sim_params = SimParams {
-        width: SIZE.0,
-        height: SIZE.1,
-        mode: SPAWN_MODE,
+        width,
+        height,
+        mode: SimSpawnMode::CircleIn,
         trail_weight: 0.75,
         decay_rate: 0.3,
         time: 0.01,
@@ -172,6 +175,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.insert_resource(sim_params);
 
     let sim_settings = SimSettings {
+        width,
+        height,
         randomize: false,
         state: SimState::Initialize,
         params_change_per_frame: 0.01,
@@ -184,6 +189,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
 #[derive(Debug, Clone, Copy)]
 struct SimSettings {
+    width: u32,
+    height: u32,
     randomize: bool,
     state: SimState,
     params_change_per_frame: f32,

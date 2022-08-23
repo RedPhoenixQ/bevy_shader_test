@@ -91,6 +91,7 @@ impl render_graph::Node for ColorNode {
         let texture_bind_group = &world.resource::<GameOfLifeImageBindGroup>().0;
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<ColorPipeline>();
+        let settings = world.resource::<crate::SimSettings>();
 
         let mut pass = render_context
             .command_encoder
@@ -99,19 +100,19 @@ impl render_graph::Node for ColorNode {
         pass.set_bind_group(0, texture_bind_group, &[]);
 
         // select the pipeline based on the current state
-        match self.state {
-            ColorState::Loading => {}
-            _ => {
+        match settings.state {
+            crate::SimState::Playing | crate::SimState::Initialize => {
                 let run_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.run_pipeline)
                     .unwrap();
                 pass.set_pipeline(run_pipeline);
                 pass.dispatch_workgroups(
-                    crate::SIZE.0 / crate::WORKGROUP_SIZE,
-                    crate::SIZE.1 / crate::WORKGROUP_SIZE,
+                    settings.width / crate::WORKGROUP_SIZE,
+                    settings.height / crate::WORKGROUP_SIZE,
                     1,
                 );
             }
+            _ => {}
         }
 
         Ok(())
