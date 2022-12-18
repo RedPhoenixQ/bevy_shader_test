@@ -13,7 +13,7 @@ use bevy::{
 };
 
 use crate::{GameOfLifeImageBindGroup, GameOfLifePipeline};
-// #[derive(Resource)]
+#[derive(Resource)]
 pub struct ColorPipeline {
     run_pipeline: CachedComputePipelineId,
 }

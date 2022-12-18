@@ -33,13 +33,22 @@ pub const NUM_AGENTS: u32 = 250000;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(WindowDescriptor {
-            // uncomment for unthrottled FPS
-            // present_mode: bevy::window::PresentMode::Fifo,
-            mode: bevy::window::WindowMode::BorderlessFullscreen,
-            ..default()
-        })
-        .add_plugins(DefaultPlugins)
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes: true,
+                    ..Default::default()
+                })
+                .set(WindowPlugin {
+                    // uncomment for unthrottled FPS
+                    // present_mode: bevy::window::PresentMode::Fifo,
+                    window: WindowDescriptor {
+                        mode: WindowMode::BorderlessFullscreen,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }),
+        )
         // .add_plugin(Midi)
         .add_plugin(GameOfLifeComputePlugin)
         .add_startup_system(setup)
@@ -85,7 +94,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, windows: Res
         TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     let image_second = images.add(image_second);
 
-    commands.spawn_bundle(SpriteBundle {
+    commands.spawn(SpriteBundle {
         sprite: Sprite {
             custom_size: Some(Vec2::new(width as f32, height as f32)),
             ..default()
@@ -93,7 +102,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, windows: Res
         texture: image.clone(),
         ..default()
     });
-    commands.spawn_bundle(Camera2dBundle {
+    commands.spawn(Camera2dBundle {
         transform: Transform {
             scale: Vec3 {
                 x: ZOOM,
@@ -189,7 +198,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, windows: Res
     commands.insert_resource(EguiState { all_visible: true })
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Resource)]
 struct SimSettings {
     width: u32,
     height: u32,
@@ -198,7 +207,7 @@ struct SimSettings {
     params_change_per_frame: f32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Resource)]
 enum SimState {
     Initialize,
     Playing,
@@ -241,6 +250,7 @@ enum RandomizableParams {
     SensorOffsetDistance,
 }
 
+#[derive(Resource)]
 struct RandInfo {
     index: RandomizableParams,
     params: RandParams,
@@ -263,10 +273,12 @@ impl RandInfo {
     }
 }
 
+#[derive(Resource)]
 struct RandArray {
     array: Vec<RandInfo>,
 }
 
+#[derive(Resource)]
 struct EguiState {
     all_visible: bool,
 }
@@ -291,30 +303,28 @@ fn update_params(
             param.changing = true;
         }
 
-        let mut current = 0.0;
-
-        match param.index {
+        let current = match param.index {
             RandomizableParams::DecayRate => {
                 sim_params.decay_rate += param.step * change;
-                current = sim_params.decay_rate;
+                sim_params.decay_rate
             }
             RandomizableParams::MoveSpeed => {
                 sim_params.move_speed += param.step * change;
-                current = sim_params.move_speed;
+                sim_params.move_speed
             }
             RandomizableParams::TurnSpeed => {
                 sim_params.turn_speed += param.step * change;
-                current = sim_params.turn_speed;
+                sim_params.turn_speed
             }
             RandomizableParams::SensorAngleSpacing => {
                 sim_params.sensor_angle_spacing += param.step * change;
-                current = sim_params.sensor_angle_spacing;
+                sim_params.sensor_angle_spacing
             }
             RandomizableParams::SensorOffsetDistance => {
                 sim_params.sensor_offset_distance += param.step * change;
-                current = sim_params.sensor_offset_distance;
+                sim_params.sensor_offset_distance
             }
-        }
+        };
 
         if (current < param.value) == param.target
         // || (current < param.params.start && param.step.is_sign_negative())
@@ -478,7 +488,7 @@ struct Agent {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Resource)]
 struct SimParams {
     color: Color32,
     blur_mask: Color32,
@@ -497,7 +507,6 @@ struct SimParams {
     sensor_size: u32,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum SimSpawnMode {
     CenterOut = 0,
@@ -505,9 +514,8 @@ enum SimSpawnMode {
     FullscreenRandom = 2,
 }
 
-#[allow(dead_code)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Resource)]
 struct SimParamsExport {
     color: [f32; 4],
     blur_mask: [f32; 4],
@@ -534,13 +542,16 @@ impl ExtractResource for SimParams {
     }
 }
 
+#[derive(Resource)]
 pub struct GameOfLifeComputePlugin;
 
+#[derive(Resource)]
 struct SimMeta {
     agents_buffer: Buffer,
     params_buffer: Buffer,
 }
 
+#[derive(Resource)]
 struct ExtractedTime {
     seconds_since_startup: f32,
     delta_time: f32,
@@ -551,7 +562,7 @@ impl ExtractResource for ExtractedTime {
 
     fn extract_resource(time: &Self::Source) -> Self {
         Self {
-            seconds_since_startup: time.seconds_since_startup() as f32,
+            seconds_since_startup: time.raw_elapsed_seconds(),
             delta_time: time.delta_seconds(),
         }
     }
@@ -616,12 +627,13 @@ impl Plugin for GameOfLifeComputePlugin {
     }
 }
 
-#[derive(Clone, Deref, ExtractResource)]
+#[derive(Clone, Deref, ExtractResource, Resource)]
 struct GameOfLifeImage(Handle<Image>);
 
-#[derive(Clone, Deref, ExtractResource)]
+#[derive(Clone, Deref, ExtractResource, Resource)]
 struct GameOfLifeImageSecond(Handle<Image>);
 
+#[derive(Resource)]
 struct GameOfLifeImageBindGroup(BindGroup);
 
 fn prepare_params(
@@ -693,7 +705,7 @@ fn queue_bind_group(
     commands.insert_resource(GameOfLifeImageBindGroup(bind_group));
 }
 
-// #[derive(Resource)]
+#[derive(Resource)]
 pub struct GameOfLifePipeline {
     texture_bind_group_layout: BindGroupLayout,
     init_pipeline: CachedComputePipelineId,
@@ -788,6 +800,7 @@ enum GameOfLifeState {
     Update,
 }
 
+#[derive(Resource)]
 struct GameOfLifeNode {
     state: GameOfLifeState,
 }
